@@ -79,7 +79,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "crewai_chat_sessions_active{job=\"crewai-chat-passthrough\"}",
+          "expr": "crewai_chat_sessions_active{job=\"crewai-chat-pt-air\"}",
           "instant": false,
           "legendFormat": "Active Sessions",
           "range": true,
@@ -143,7 +143,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(crewai_chat_messages_total{job=\"crewai-chat-passthrough\",direction=\"incoming\"}[5m]))",
+          "expr": "sum(increase(crewai_chat_messages_total{job=\"crewai-chat-pt-air\",direction=\"incoming\"}[5m]))",
           "instant": false,
           "legendFormat": "Messages (5m)",
           "range": true,
@@ -215,7 +215,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(crewai_chat_response_time_seconds_sum{job=\"crewai-chat-passthrough\"}[5m]) / rate(crewai_chat_response_time_seconds_count{job=\"crewai-chat-passthrough\"}[5m])",
+          "expr": "rate(crewai_chat_response_time_seconds_sum{job=\"crewai-chat-pt-air\"}[5m]) / rate(crewai_chat_response_time_seconds_count{job=\"crewai-chat-pt-air\"}[5m])",
           "instant": false,
           "legendFormat": "Avg Response Time",
           "range": true,
@@ -279,7 +279,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(crewai_chat_tokens_total{job=\"crewai-chat-passthrough\"}[5m]))",
+          "expr": "sum(increase(crewai_chat_tokens_total{job=\"crewai-chat-pt-air\"}[5m]))",
           "instant": false,
           "legendFormat": "Tokens Generated",
           "range": true,
@@ -408,7 +408,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(crewai_chat_messages_total{job=\"crewai-chat-passthrough\",direction=\"incoming\"}[1m])",
+          "expr": "rate(crewai_chat_messages_total{job=\"crewai-chat-pt-air\",direction=\"incoming\"}[1m])",
           "instant": false,
           "legendFormat": "Incoming",
           "range": true,
@@ -420,7 +420,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(crewai_chat_messages_total{job=\"crewai-chat-passthrough\",direction=\"outgoing\"}[1m])",
+          "expr": "rate(crewai_chat_messages_total{job=\"crewai-chat-pt-air\",direction=\"outgoing\"}[1m])",
           "hide": false,
           "instant": false,
           "legendFormat": "Outgoing",
@@ -520,7 +520,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-passthrough\"}[5m]))",
+          "expr": "histogram_quantile(0.50, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-pt-air\"}[5m]))",
           "instant": false,
           "legendFormat": "p50",
           "range": true,
@@ -532,7 +532,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.90, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-passthrough\"}[5m]))",
+          "expr": "histogram_quantile(0.90, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-pt-air\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "p90",
@@ -545,7 +545,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-passthrough\"}[5m]))",
+          "expr": "histogram_quantile(0.99, rate(crewai_chat_response_time_seconds_bucket{job=\"crewai-chat-pt-air\"}[5m]))",
           "hide": false,
           "instant": false,
           "legendFormat": "p99",
@@ -673,7 +673,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "increase(crewai_chat_llm_requests_total{job=\"crewai-chat-passthrough\",status=\"success\"}[1m])",
+          "expr": "increase(crewai_chat_llm_requests_total{job=\"crewai-chat-pt-air\",status=\"success\"}[1m])",
           "instant": false,
           "legendFormat": "Success",
           "range": true,
@@ -685,7 +685,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "increase(crewai_chat_llm_requests_total{job=\"crewai-chat-passthrough\",status=\"error\"}[1m])",
+          "expr": "increase(crewai_chat_llm_requests_total{job=\"crewai-chat-pt-air\",status=\"error\"}[1m])",
           "hide": false,
           "instant": false,
           "legendFormat": "Error",
@@ -784,7 +784,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(crewai_chat_tokens_total{job=\"crewai-chat-passthrough\"}[1m])",
+          "expr": "rate(crewai_chat_tokens_total{job=\"crewai-chat-pt-air\"}[1m])",
           "instant": false,
           "legendFormat": "Token Generation Rate",
           "range": true,
@@ -864,7 +864,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (user) (crewai_chat_messages_total{job=\"crewai-chat-passthrough\",direction=\"incoming\"})",
+          "expr": "sum by (user) (crewai_chat_messages_total{job=\"crewai-chat-pt-air\",direction=\"incoming\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -953,7 +953,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (status) (crewai_chat_llm_requests_total{job=\"crewai-chat-passthrough\"})",
+          "expr": "sum by (status) (crewai_chat_llm_requests_total{job=\"crewai-chat-pt-air\"})",
           "instant": false,
           "legendFormat": "{{status}}",
           "range": true,
