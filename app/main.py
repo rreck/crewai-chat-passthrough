@@ -10,6 +10,7 @@ import time
 import json
 import sqlite3
 import requests
+import csv
 from datetime import datetime
 from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
@@ -21,7 +22,9 @@ METRICS_PORT = int(os.environ.get('METRICS_PORT', 9090))
 C2_REGISTRY_URL = os.environ.get('C2_REGISTRY_URL', 'http://crewai-c2-dc1-prod-001-v1-0-0:8080')
 DATA_DIR = os.environ.get('DATA_DIR', './data')
 OUTPUT_DIR = os.environ.get('OUTPUT_DIR', './output')
-PIDFILE = os.environ.get('PIDFILE', '/var/run/crewai-chat-passthrough.pid')
+INPUT_DIR = os.environ.get('INPUT_DIR', './input')
+PIDFILE = os.environ.get('PIDFILE', '/var/run/crewai-chat-pt-air.pid')
+CSV_FILE = os.environ.get('CSV_FILE', 'KMMU_OPS_Data_10-24-25.csv')
 
 # Prometheus metrics
 chat_messages_total = Counter('crewai_chat_messages_total', 'Total chat messages', ['direction', 'user'])
@@ -181,10 +184,71 @@ class ChatDatabase:
 # Initialize database
 db = ChatDatabase(os.path.join(DATA_DIR, 'chat.db'))
 
-# Claude LLM - Pure Passthrough
+# CSV Data Loader
+class CSVDataLoader:
+    """Load and provide metadata about CSV dataset"""
+    def __init__(self, csv_path):
+        self.csv_path = csv_path
+        self.columns = []
+        self.row_count = 0
+        self.sample_data = []
+        self.load_metadata()
+
+    def load_metadata(self):
+        """Load CSV metadata - columns, row count, and sample rows"""
+        try:
+            with open(self.csv_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                self.columns = next(reader)  # First row is header
+
+                # Get first 3 sample rows
+                for i, row in enumerate(reader):
+                    if i < 3:
+                        self.sample_data.append(row)
+                    self.row_count = i + 1
+
+            print(f"✓ Loaded CSV: {self.row_count} rows, {len(self.columns)} columns")
+        except Exception as e:
+            print(f"WARNING: Could not load CSV metadata: {e}")
+
+    def get_system_prompt_context(self):
+        """Generate system prompt context about the dataset"""
+        if not self.columns:
+            return ""
+
+        context = f"""
+
+You have access to an aviation operations dataset: KMMU_OPS_Data_10-24-25.csv
+
+Dataset Details:
+- Total Records: {self.row_count:,}
+- Location: Morristown Municipal Airport (KMMU)
+- Data Period: Through October 24, 2025
+
+ALL {len(self.columns)} COLUMNS (complete list):
+{', '.join(self.columns)}
+
+Column Categories:
+- Identification: Record_Number, Radar_Record_Number, Adsb_Icao_Id, N_Number fields, Unique_ID
+- Aircraft Details: AC_Mfr_Name, AC_Model, AC_Category_Code, Type_Aircraft, Type_Engine, AC_Serial_Number, AC_Year_Mfr
+- Engine: Engine_Mfr_Name, Engine_Model_Name, Engine_Horsepower, Engine_Pounds_of_Thrust, Number_of_Engines
+- Operations: Operation_Date_Time, Operation_DT_UTC, Operation_Type (TO/LA), Rwy_Used, Sensor_Name
+- Owner/Registration: Registrant_Name, Registrant_Street_1/2, Registrant_City, Registrant_State, Registrant_Zip_Code, Registrant_County, Registrant_Country, Type_Registrant
+- Aircraft Specs: Number_of_Seats, Gross_Takeoff_Weight, Cruising_Speed, Status_Code, Airworthiness_Date
+- Airport: AP_Customer_ID, AP_State, AC_Home_Base_AP, AP_Pressure_Altitude, AP_Wx_Category, AP_Baro_Elevation
+- Classifications: AAC, ADG, TDG, Builder_Cert_Code, Part_135, level
+- Route Data: origin_destination_ap_id, origin_destination_ap_name, origin_destination_ap_city, origin_destination_ap_state, origin_destination_ap_country, origin_destination_ap_latitude, origin_destination_ap_longitude, origin_destination_time_enroute
+- Timing: Time_Since_Last_Op, Previous_Op_Type, Previous_Op_Time
+- Other: Demo_Flag, Group_Membership fields, Adsb_RSSI, detection_descriptor, jaccard_score
+
+When users ask about this dataset, you can discuss ANY of these {len(self.columns)} columns and their data."""
+
+        return context
+
+# Claude LLM with CSV Context
 class ClaudeLLM:
-    """Pure passthrough to Claude API with minimal system prompt"""
-    def __init__(self, api_key=None):
+    """Claude API with CSV dataset awareness"""
+    def __init__(self, api_key=None, csv_loader=None):
         # Try multiple sources for API key
         self.api_key = (api_key or
                        os.environ.get('ANTHROPIC_API_KEY') or
@@ -210,12 +274,17 @@ class ClaudeLLM:
             raise ValueError("No Anthropic API key found. Set ANTHROPIC_API_KEY or create ~/.anthropic/api_key")
 
         self.api_url = "https://api.anthropic.com/v1/messages"
+        self.csv_loader = csv_loader
 
     def generate_stream(self, prompt, session_id, conversation_history=None):
-        """Generate streaming response from Claude - pure passthrough"""
+        """Generate streaming response from Claude with CSV context"""
         try:
-            # Minimal system prompt - no data context, no instructions
+            # Base system prompt with CSV dataset context
             system_message = "You are Claude, a helpful AI assistant."
+
+            # Add CSV context if available
+            if self.csv_loader:
+                system_message += self.csv_loader.get_system_prompt_context()
 
             # Build conversation messages from history if provided
             messages = []
@@ -303,8 +372,8 @@ def register_with_c2():
         ip_address = socket.gethostbyname(hostname)
 
         service_data = {
-            'id': 'crewai-chat-passthrough-001',
-            'name': 'crewai-chat-passthrough',
+            'id': 'crewai-chat-pt-air-002',
+            'name': 'crewai-chat-pt-air',
             'type': 'chat',
             'address': ip_address,
             'port': API_PORT,
@@ -312,7 +381,7 @@ def register_with_c2():
             'tags': ['production', 'chat-interface', 'passthrough'],
             'datacenter': 'dc1',
             'environment': 'prod',
-            'instance_id': '001',
+            'instance_id': '002',
             'version': 'v1.0.0'
         }
 
@@ -336,7 +405,7 @@ def register_with_c2():
 # Flask routes - Standard A2A endpoints
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'service': 'crewai-chat-passthrough'})
+    return jsonify({'status': 'healthy', 'service': 'crewai-chat-pt-air'})
 
 @app.route('/status', methods=['GET'])
 def status():
@@ -344,8 +413,8 @@ def status():
     chat_sessions_active.set(active_sessions)
 
     return jsonify({
-        'id': 'crewai-chat-passthrough',
-        'name': 'CrewAI Chat Passthrough Agent',
+        'id': 'crewai-chat-pt-air',
+        'name': 'CrewAI Chat PT Air Agent',
         'type': 'chat',
         'capabilities': ['chat', 'claude-passthrough', 'streaming'],
         'active_sessions': active_sessions,
@@ -491,11 +560,19 @@ if __name__ == '__main__':
     with open(PIDFILE, 'w') as f:
         f.write(str(os.getpid()))
 
-    # Initialize LLM
+    # Load CSV data
+    csv_path = os.path.join(INPUT_DIR, CSV_FILE)
+    csv_loader = None
+    if os.path.exists(csv_path):
+        csv_loader = CSVDataLoader(csv_path)
+    else:
+        print(f"WARNING: CSV file not found at {csv_path}")
+
+    # Initialize LLM with CSV context
     global llm
     try:
-        llm = ClaudeLLM()
-        print(f"✓ Claude Sonnet 4 passthrough initialized")
+        llm = ClaudeLLM(csv_loader=csv_loader)
+        print(f"✓ Claude Sonnet 4 initialized with CSV context")
     except ValueError as e:
         print(f"ERROR: Could not initialize Claude: {e}")
         sys.exit(1)
@@ -503,7 +580,7 @@ if __name__ == '__main__':
     # Register with C2
     register_with_c2()
 
-    print(f"Starting CrewAI Chat Passthrough Agent on port {API_PORT}")
+    print(f"Starting CrewAI Chat PT Air Agent on port {API_PORT}")
     print(f"Metrics available on port {METRICS_PORT}")
     print(f"Mode: Pure passthrough to Claude Sonnet 4")
 

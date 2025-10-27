@@ -39,7 +39,7 @@ EXPOSE 8080 9090
 ENV INPUT_DIR=/work/input \
     OUTPUT_DIR=/work/output \
     DATA_DIR=/work/data \
-    PIDFILE=/work/crewai-chat-passthrough.pid \
+    PIDFILE=/work/crewai-chat-pt-air.pid \
     METRICS_PORT=9090 \
     API_PORT=8080 \
     C2_REGISTRY_URL=http://crewai-c2-dc1-prod-001-v1-0-0:8080

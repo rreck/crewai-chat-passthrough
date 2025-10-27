@@ -1,26 +1,26 @@
 #!/bin/bash
 
-# CrewAI Chat Passthrough Agent Container Management Script
-# Follows rigorous container naming: crewai-chat-passthrough-{model}-{model_version}-{env}-{instance}
+# CrewAI Chat PT Agent Container Management Script
+# Follows rigorous container naming: crewai-chat-pt-{model}-{model_version}-{env}-{instance}
 
 set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_NAME="crewai-chat-passthrough"
+IMAGE_NAME="crewai-chat-pt-air"
 MODEL="${MODEL:-claude}"
 MODEL_VERSION="${MODEL_VERSION:-sonnet4}"
 ENVIRONMENT="${ENVIRONMENT:-prod}"
-INSTANCE_ID="${INSTANCE_ID:-001}"
+INSTANCE_ID="${INSTANCE_ID:-002}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 # Generate rigorous container name
-CONTAINER_NAME="crewai-chat-passthrough-${MODEL}-${MODEL_VERSION}-${ENVIRONMENT}-${INSTANCE_ID}"
+CONTAINER_NAME="crewai-chat-pt-air-${MODEL}-${MODEL_VERSION}-${ENVIRONMENT}-${INSTANCE_ID}"
 
 # Network configuration
 NETWORK_NAME="${NETWORK_NAME:-crewai-network}"
-API_PORT="${API_PORT:-8087}"
-METRICS_PORT="${METRICS_PORT:-9097}"
+API_PORT="${API_PORT:-8089}"
+METRICS_PORT="${METRICS_PORT:-9099}"
 
 # Service configuration
 C2_REGISTRY_URL="${C2_REGISTRY_URL:-http://crewai-c2-dc1-prod-001-v1-0-0:8080}"
@@ -29,6 +29,7 @@ C2_REGISTRY_URL="${C2_REGISTRY_URL:-http://crewai-c2-dc1-prod-001-v1-0-0:8080}"
 DATA_DIR="${DATA_DIR:-${SCRIPT_DIR}/data}"
 KB_DIR="${KB_DIR:-${SCRIPT_DIR}/kb}"
 OUTPUT_DIR="${OUTPUT_DIR:-${SCRIPT_DIR}/output}"
+INPUT_DIR="${INPUT_DIR:-${SCRIPT_DIR}/input}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -55,10 +56,10 @@ success() {
 
 validate_naming_schema() {
     local name="$1"
-    if [[ ! "$name" =~ ^crewai-chat-passthrough-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[0-9]+$ ]]; then
+    if [[ ! "$name" =~ ^crewai-chat-pt-air-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[0-9]+$ ]]; then
         error "Container name '$name' does not follow rigorous naming schema:"
-        error "Expected: crewai-chat-passthrough-{model}-{model_version}-{env}-{instance}"
-        error "Example: crewai-chat-passthrough-claude-sonnet4-prod-001"
+        error "Expected: crewai-chat-pt-air-{model}-{model_version}-{env}-{instance}"
+        error "Example: crewai-chat-pt-air-claude-sonnet4-prod-002"
         return 1
     fi
     return 0
@@ -103,17 +104,18 @@ stop_container() {
 }
 
 start_container() {
-    log "Starting Chat Passthrough agent container: $CONTAINER_NAME"
+    log "Starting Chat PT Air agent container: $CONTAINER_NAME"
 
     docker run -d \
         --name "$CONTAINER_NAME" \
         --network "$NETWORK_NAME" \
-        --hostname "crewai-chat-passthrough-${INSTANCE_ID}" \
+        --hostname "crewai-chat-pt-air-${INSTANCE_ID}" \
         -p "$API_PORT:8080" \
         -p "$METRICS_PORT:9090" \
         -v "$DATA_DIR:/work/data" \
         -v "$KB_DIR:/work/kb" \
         -v "$OUTPUT_DIR:/work/output" \
+        -v "$INPUT_DIR:/work/input:ro" \
         -v "$HOME/.anthropic:/home/crewai/.anthropic:ro" \
         -e MODEL="$MODEL" \
         -e MODEL_VERSION="$MODEL_VERSION" \
@@ -130,13 +132,13 @@ start_container() {
 }
 
 wait_for_health() {
-    log "Waiting for Chat Passthrough agent to become healthy..."
+    log "Waiting for Chat PT Air agent to become healthy..."
     local max_attempts=30
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
         if curl -sf "http://localhost:$API_PORT/health" >/dev/null 2>&1; then
-            success "Chat Passthrough agent is healthy and responding"
+            success "Chat PT Air agent is healthy and responding"
             return 0
         fi
 
@@ -145,7 +147,7 @@ wait_for_health() {
         ((attempt++))
     done
 
-    error "Chat Passthrough agent failed to become healthy"
+    error "Chat PT Air agent failed to become healthy"
     return 1
 }
 
@@ -209,9 +211,9 @@ case "${1:-}" in
         echo ""
         echo "Commands:"
         echo "  build     - Build the Docker image"
-        echo "  start     - Start the Chat Passthrough agent container"
-        echo "  stop      - Stop the Chat Passthrough agent container"
-        echo "  restart   - Restart the Chat Passthrough agent container"
+        echo "  start     - Start the Chat PT Air agent container"
+        echo "  stop      - Stop the Chat PT Air agent container"
+        echo "  restart   - Restart the Chat PT Air agent container"
         echo "  status    - Show container status"
         echo "  logs      - Show container logs (follow mode)"
         echo "  cleanup   - Stop and remove container"

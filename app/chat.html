@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CrewAI Chat Passthrough - Claude</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>CrewAI Chat PT Air</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -129,7 +132,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>🤖 CrewAI Chat Passthrough - <span id="modelName">Claude Sonnet 4</span></h1>
+        <h1>🤖 CrewAI Chat PT Air - <span id="modelName">Claude Sonnet 4</span></h1>
         <span class="session-info" id="sessionInfo">Ready</span>
     </div>
     <div class="chat-container" id="chatContainer"></div>
@@ -141,14 +144,32 @@
         var sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         var userId = 'user-' + Math.random().toString(36).substr(2, 9);
         var isProcessing = false;
+        var modelMasked = false;  // Default: show model name (mask off)
 
         document.getElementById('sessionInfo').textContent = 'Session: ' + sessionId.substr(0, 20) + '...';
 
-        document.getElementById('sendBtn').onclick = function() {
+        function sendMessage() {
             var inp = document.getElementById('messageInput');
             var msg = inp.value.trim();
             if (!msg || isProcessing) return;
 
+            // Check for mask commands - HANDLE LOCALLY, DON'T SEND TO SERVER
+            if (msg.toLowerCase() === 'mask on') {
+                modelMasked = true;
+                document.getElementById('modelName').style.display = 'none';
+                inp.value = '';
+                // Don't add message to chat
+                return;
+            }
+            if (msg.toLowerCase() === 'mask off') {
+                modelMasked = false;
+                document.getElementById('modelName').style.display = 'inline';
+                inp.value = '';
+                // Don't add message to chat
+                return;
+            }
+
+            // Regular message - send to server
             isProcessing = true;
             inp.value = '';
             document.getElementById('sendBtn').disabled = true;
@@ -216,12 +237,14 @@
                 isProcessing = false;
                 document.getElementById('sendBtn').disabled = false;
             });
-        };
+        }
+
+        document.getElementById('sendBtn').onclick = sendMessage;
 
         document.getElementById('messageInput').onkeydown = function(e) {
             if (e.key === 'Enter' && !isProcessing) {
                 e.preventDefault();
-                document.getElementById('sendBtn').click();
+                sendMessage();
             }
         };
 
@@ -242,40 +265,68 @@
         }
 
         function formatMarkdown(text) {
-            // Escape HTML first
-            text = text.replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;');
+            // Escape HTML first to prevent injection
+            var escapeHtml = function(unsafe) {
+                return unsafe
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            };
 
-            // Code blocks (```code```)
-            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
+            text = escapeHtml(text);
+
+            // Code blocks (```code```) - must be before inline code
+            text = text.replace(/```(\w+)?\n?([\s\S]*?)```/g, function(match, lang, code) {
                 return '<pre><code>' + code.trim() + '</code></pre>';
             });
 
             // Inline code (`code`)
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-            // Bold (**text** or __text__)
-            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
-            // Italic (*text* or _text_)
-            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
-            text = text.replace(/_(.+?)_/g, '<em>$1</em>');
+            // Bold (**text**)
+            text = text.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
 
             // Headers
             text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
             text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
             text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-            // Unordered lists
-            text = text.replace(/^\- (.+)$/gm, '<li>$1</li>');
-            text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            // Unordered lists - handle more carefully
+            var lines = text.split('\n');
+            var inList = false;
+            var result = [];
 
-            // Ordered lists
-            text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (line.match(/^[\-\*] (.+)$/)) {
+                    if (!inList) {
+                        result.push('<ul>');
+                        inList = true;
+                    }
+                    result.push('<li>' + line.replace(/^[\-\*] /, '') + '</li>');
+                } else if (line.match(/^\d+\. (.+)$/)) {
+                    if (!inList) {
+                        result.push('<ol>');
+                        inList = true;
+                    }
+                    result.push('<li>' + line.replace(/^\d+\. /, '') + '</li>');
+                } else {
+                    if (inList) {
+                        result.push(result.indexOf('<ul>') > result.indexOf('<ol>') ? '</ul>' : '</ol>');
+                        inList = false;
+                    }
+                    result.push(line);
+                }
+            }
+            if (inList) {
+                result.push('</ul>');
+            }
 
-            // Line breaks (preserve newlines)
+            text = result.join('\n');
+
+            // Line breaks
             text = text.replace(/\n/g, '<br>');
 
             // Clean up multiple consecutive <br> tags

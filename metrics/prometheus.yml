@@ -1,10 +1,10 @@
-# Prometheus scrape configuration for crewai-chat-passthrough
+# Prometheus scrape configuration for crewai-chat-pt
 # Add this job to your Prometheus configuration
 
 scrape_configs:
-  - job_name: 'crewai-chat-passthrough'
+  - job_name: 'crewai-chat-pt'
     static_configs:
-      - targets: ['crewai-chat-passthrough-claude-sonnet4-prod-001:8080']
+      - targets: ['crewai-chat-pt-claude-sonnet4-prod-001:8080']
     metrics_path: '/metrics'
     scrape_interval: 15s
     scrape_timeout: 10s

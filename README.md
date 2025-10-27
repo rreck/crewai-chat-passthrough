@@ -1,49 +1,47 @@
-# CrewAI Chat Passthrough Agent (Docker) — v1.0.0
+# CrewAI Chat PT Air — v1.0.0
 
 **Copyright (c) RRECKTEK LLC**
-**Built:** 2025-10-25 13:45 UTC (commit 22258a0)
 
-A pure passthrough chat interface to Claude Sonnet 4 with zero funnel logic, zero data query intelligence, and minimal system prompts. Clean, direct communication with Claude for general-purpose chat applications.
+Claude Sonnet 4 chat interface with CSV dataset awareness. Provides direct LLM access with aviation operations data context from KMMU airport.
 
 ## 🚀 Features
 
-- **Pure Claude Passthrough**: Direct access to Claude Sonnet 4 with minimal modification
-- **Zero Funnel Logic**: No intent classification, query optimization, or data intelligence
-- **Minimal System Prompt**: 1-line assistant role (vs 370+ lines in data query agents)
+- **CSV Data Context**: Loads KMMU_OPS_Data_10-24-25.csv (209K+ rows, 91 columns) into system prompt
+- **Pure Claude Passthrough**: Direct access to Claude Sonnet 4 with dataset awareness
 - **Streaming Responses**: Real-time token-by-token output with SSE
 - **Conversation History**: Maintains last 10 messages for context
 - **Session Management**: Multi-user session support with SQLite storage
 - **Agent-to-Agent (A2A) API**: Standard CrewAI HTTP endpoints
 - **Prometheus Metrics**: Comprehensive monitoring with 6 metric families
-- **Grafana Dashboard**: 10 visualization panels for real-time monitoring
-- **Web Interface**: Clean, modern chat UI with markdown support
+- **Web Interface**: Clean chat UI with mask on/off commands
+- **Client-Side Commands**: `mask on` / `mask off` to hide/show model name
 
 ## 📋 Quick Start
 
 ```bash
 # Build the container
-cd crewai-chat-passthrough
-./run-chat-passthrough-watch.sh build
+cd crewai-chat-pt-air
+./run-chat-pt-watch.sh build
 
 # Start the agent
-./run-chat-passthrough-watch.sh start
+./run-chat-pt-watch.sh start
 
 # Access chat interface
-open http://localhost:8087/chat
+open http://localhost:8089/chat
 
 # Check health and status
-./run-chat-passthrough-watch.sh status
-curl http://localhost:8087/health
+./run-chat-pt-watch.sh status
+curl http://localhost:8089/health
 
 # Stop container
-./run-chat-passthrough-watch.sh stop
+./run-chat-pt-watch.sh stop
 ```
 
 ## 📁 Directory Structure
 
 ```
-crewai-chat-passthrough/
-├── input/              # Input directory (not used for chat)
+crewai-chat-pt-air/
+├── input/              # CSV data files (KMMU_OPS_Data_10-24-25.csv)
 ├── output/             # Generated outputs
 │   └── logs/           # Processing logs
 ├── data/               # SQLite session storage
@@ -52,13 +50,13 @@ crewai-chat-passthrough/
 │   ├── short/          # Atomic pmem 1.0 artifacts
 │   └── long/           # Consolidated pmem artifacts
 ├── app/
-│   ├── main.py         # Flask chat agent with Claude integration
-│   └── chat.html       # Web chat interface
+│   ├── main.py         # Flask chat agent with Claude + CSV integration
+│   └── chat.html       # Web chat interface with mask commands
 ├── metrics/
-│   ├── chat-passthrough-dashboard.json  # Grafana dashboard (v2, verified)
-│   └── prometheus.yml                   # Prometheus scrape configuration
+│   ├── chat-pt-dashboard.json  # Grafana dashboard
+│   └── prometheus.yml          # Prometheus scrape configuration
 ├── Dockerfile
-├── run-chat-passthrough-watch.sh        # Container management script
+├── run-chat-pt-watch.sh        # Container management script
 └── README.md
 ```
 
@@ -68,11 +66,13 @@ crewai-chat-passthrough/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_PORT` | `8080` | Internal API port (mapped to 8087 externally) |
-| `METRICS_PORT` | `9090` | Internal metrics port (mapped to 9097 externally) |
+| `API_PORT` | `8080` | Internal API port (mapped to 8089 externally) |
+| `METRICS_PORT` | `9090` | Internal metrics port (mapped to 9099 externally) |
 | `DATA_DIR` | `./data` | Directory for SQLite database |
 | `OUTPUT_DIR` | `./output` | Directory for logs |
-| `PIDFILE` | `/var/run/crewai-chat-passthrough.pid` | PID file location |
+| `INPUT_DIR` | `./input` | Directory for CSV data files |
+| `CSV_FILE` | `KMMU_OPS_Data_10-24-25.csv` | CSV filename to load |
+| `PIDFILE` | `/var/run/crewai-chat-pt-air.pid` | PID file location |
 | `C2_REGISTRY_URL` | `http://crewai-c2-dc1-prod-001-v1-0-0:8080` | Consul registry URL |
 
 ### Claude API Key
@@ -87,8 +87,8 @@ Get your API key at: https://console.anthropic.com/settings/keys
 
 ### Container Ports
 
-- **8087**: Chat API and web interface (external)
-- **9097**: Prometheus metrics endpoint (external)
+- **8089**: Chat API and web interface (external)
+- **9099**: Prometheus metrics endpoint (external)
 
 ## 🖥️ Usage
 
@@ -96,44 +96,70 @@ Get your API key at: https://console.anthropic.com/settings/keys
 
 ```bash
 # Build Docker image
-./run-chat-passthrough-watch.sh build
+./run-chat-pt-watch.sh build
 
 # Start agent
-./run-chat-passthrough-watch.sh start
+./run-chat-pt-watch.sh start
 
 # Stop agent
-./run-chat-passthrough-watch.sh stop
+./run-chat-pt-watch.sh stop
 
 # Restart agent
-./run-chat-passthrough-watch.sh restart
+./run-chat-pt-watch.sh restart
 
 # Show status
-./run-chat-passthrough-watch.sh status
+./run-chat-pt-watch.sh status
 
 # View logs
-./run-chat-passthrough-watch.sh logs
+./run-chat-pt-watch.sh logs
 
 # Cleanup (stop and remove)
-./run-chat-passthrough-watch.sh cleanup
+./run-chat-pt-watch.sh cleanup
 ```
 
 ### Chat Interface
 
-Access the web interface at: **http://localhost:8087/chat**
+Access the web interface at: **http://localhost:8089/chat**
 
-Features:
+#### Special Commands
+
+- **`mask on`**: Hide "Claude Sonnet 4" from title bar (client-side only, not sent to LLM)
+- **`mask off`**: Show "Claude Sonnet 4" in title bar (default)
+
+These commands are handled entirely in the browser and do not appear in chat history.
+
+#### Chat Features
+
 - Real-time streaming responses
 - Markdown formatting (bold, code blocks, lists)
 - Persistent sessions
 - Multi-user support
 - Message history
+- Aviation dataset context automatically included
+
+### CSV Data Context
+
+The agent automatically loads CSV metadata on startup:
+
+```
+✓ Loaded CSV: 209,737 rows, 91 columns
+✓ Claude Sonnet 4 initialized with CSV context
+```
+
+All 91 columns from KMMU_OPS_Data_10-24-25.csv are included in the system prompt:
+- Aircraft details (N_Number, manufacturer, model, type)
+- Operations (takeoff/landing, datetime, runway)
+- Owner/registration information
+- Technical specifications (engines, weights, speeds)
+- Airport classifications (ADG, TDG, weather category)
+- Route data (origin/destination with coordinates)
 
 ### API Usage
 
 #### Create Session
 
 ```bash
-curl -X POST http://localhost:8087/chat/session/new \
+curl -X POST http://localhost:8089/chat/session/new \
   -H "Content-Type: application/json" \
   -d '{"user_id": "alice", "metadata": {"source": "api"}}'
 ```
@@ -141,21 +167,21 @@ curl -X POST http://localhost:8087/chat/session/new \
 #### Send Message
 
 ```bash
-curl -X POST http://localhost:8087/chat/send \
+curl -X POST http://localhost:8089/chat/send \
   -H "Content-Type: application/json" \
-  -d '{"message": "Explain quantum computing", "user_id": "alice", "session_id": "SESSION_ID"}'
+  -d '{"message": "How many aircraft operations in the dataset?", "user_id": "alice", "session_id": "SESSION_ID"}'
 ```
 
 #### Get History
 
 ```bash
-curl "http://localhost:8087/chat/history?session_id=SESSION_ID&limit=20"
+curl "http://localhost:8089/chat/history?session_id=SESSION_ID&limit=20"
 ```
 
 #### Get All Sessions
 
 ```bash
-curl "http://localhost:8087/chat/sessions?user_id=alice"
+curl "http://localhost:8089/chat/sessions?user_id=alice"
 ```
 
 ## 🌐 Agent-to-Agent (A2A) API
@@ -175,17 +201,17 @@ Standard CrewAI endpoints for inter-agent communication:
 ### Health Check
 
 ```bash
-curl http://localhost:8087/health
-# {"service":"crewai-chat-passthrough","status":"healthy"}
+curl http://localhost:8089/health
+# {"service":"crewai-chat-pt-air","status":"healthy"}
 ```
 
 ### Status
 
 ```bash
-curl http://localhost:8087/status
+curl http://localhost:8089/status
 # {
-#   "id": "crewai-chat-passthrough",
-#   "name": "CrewAI Chat Passthrough Agent",
+#   "id": "crewai-chat-pt-air",
+#   "name": "CrewAI Chat PT Air Agent",
 #   "type": "chat",
 #   "capabilities": ["chat", "claude-passthrough", "streaming"],
 #   "active_sessions": 5,
@@ -197,7 +223,7 @@ curl http://localhost:8087/status
 
 ### Prometheus Metrics
 
-Exposed on: **http://localhost:8087/metrics**
+Exposed on: **http://localhost:8089/metrics**
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
@@ -210,37 +236,17 @@ Exposed on: **http://localhost:8087/metrics**
 
 ### Grafana Dashboard
 
-Import the dashboard from `metrics/chat-passthrough-dashboard.json` into Grafana.
-
-**Dashboard URL** (if imported): http://localhost:3000/d/crewai-chat-passthrough
-
-**Panels** (10 total):
-1. Active Sessions (stat)
-2. Messages (5 min) (stat)
-3. Avg Response Time (stat)
-4. Tokens Generated (5 min) (stat)
-5. Message Rate (time series)
-6. Response Time Percentiles (p50/p90/p99)
-7. LLM Request Status (bars)
-8. Token Generation Rate (time series)
-9. Messages by User (table)
-10. LLM Request Distribution (pie chart)
-
-**Features**:
-- 5-second auto-refresh
-- 15-minute time window
-- Color-coded thresholds
-- Responsive layout
+Import the dashboard from `metrics/chat-pt-dashboard.json` into Grafana.
 
 ### Prometheus Integration
 
-Add this job to your Prometheus configuration (`prometheus.yml`):
+Add this job to your Prometheus configuration:
 
 ```yaml
 scrape_configs:
-  - job_name: 'crewai-chat-passthrough'
+  - job_name: 'crewai-chat-pt-air'
     static_configs:
-      - targets: ['crewai-chat-passthrough-claude-sonnet4-prod-001:8080']
+      - targets: ['crewai-chat-pt-air-claude-sonnet4-prod-002:8080']
     metrics_path: '/metrics'
     scrape_interval: 15s
 ```
@@ -249,117 +255,64 @@ Or use the included config: `metrics/prometheus.yml`
 
 ## 🏗️ Architecture
 
-### Comparison: Passthrough vs DataQuery
-
-| Feature | crewai-chat-dataquery | crewai-chat-passthrough |
-|---------|----------------------|------------------------|
-| Intent Classifier | ✓ | ✗ |
-| Sweet Spot Library | ✓ | ✗ |
-| Data Engine | ✓ | ✗ |
-| Prompt Funnel | ✓ | ✗ |
-| Database Queries | ✓ | ✗ |
-| System Prompt | 370+ lines | 1 line |
-| LLM Optimization | Heavy | Minimal |
-| Max Tokens | 150-4096 | 8192 |
-| Temperature | 0.2-0.7 | 1.0 |
-| Use Case | Data analysis | General chat |
-
 ### Core Components
 
 1. **Flask Web Server**: Handles HTTP requests and SSE streaming
-2. **ClaudeLLM**: Anthropic API integration with conversation history
-3. **ChatDatabase**: SQLite-based session and message storage
-4. **Web Interface**: Modern chat UI with markdown support
-5. **Metrics**: Prometheus client for monitoring
+2. **ClaudeLLM**: Anthropic API integration with CSV context
+3. **CSVDataLoader**: Loads CSV metadata into system prompt
+4. **ChatDatabase**: SQLite-based session and message storage
+5. **Web Interface**: Modern chat UI with mask commands and markdown support
+6. **Metrics**: Prometheus client for monitoring
+
+### CSV Context Flow
+
+```
+Startup → CSVDataLoader → Load metadata (columns, row count)
+                       → Generate system prompt context
+                       → Pass to ClaudeLLM
+                       → Include in every conversation
+```
 
 ### Message Flow
 
 ```
-User → Web UI → Flask → ClaudeLLM → Anthropic API
-                  ↓                      ↓
-            ChatDatabase            SSE Stream
-                  ↓                      ↓
-            SQLite (chat.db)      → Web UI (tokens)
-```
-
-## 🧪 Testing & Validation
-
-### Test Results Summary
-
-**Date**: 2025-10-24
-**Status**: ✅ 10/11 tests passed (91%)
-
-| Test Category | Tests | Passed | Status |
-|--------------|-------|--------|--------|
-| Metrics Exposure | 2 | 2 | ✅ |
-| Health/Status | 2 | 2 | ✅ |
-| Chat Functionality | 2 | 2 | ✅ |
-| Metrics Updates | 1 | 1 | ✅ |
-| C2 Registration | 1 | 0 | ⚠️ Non-blocking |
-| Prometheus Integration | 2 | 2 | ✅ |
-| Grafana Dashboard | 1 | 1 | ✅ |
-
-### Performance Metrics
-
-- **Chat Response Time**: 1.84s average
-- **Token Generation**: 2 tokens/message average
-- **API Response**: <50ms (health/status)
-- **Metrics Endpoint**: <100ms
-- **Container Startup**: ~6 seconds to healthy
-- **Memory Usage**: ~34MB resident
-
-### Manual Testing
-
-```bash
-# Test health endpoint
-curl http://localhost:8087/health
-
-# Test status endpoint
-curl http://localhost:8087/status | jq
-
-# Test chat with simple question
-curl -X POST http://localhost:8087/chat/send \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What is 2+2?", "user_id": "test"}'
-
-# Verify metrics updating
-curl http://localhost:8087/metrics | grep crewai_chat_messages_total
-
-# Test Grafana datasource query
-curl "http://localhost:3000/api/datasources/proxy/uid/DATASOURCE_UID/api/v1/query?query=crewai_chat_messages_total" \
-  -u admin:admin
+User → Web UI → Flask → ClaudeLLM (w/ CSV context) → Anthropic API
+                 ↓                                      ↓
+           ChatDatabase                            SSE Stream
+                 ↓                                      ↓
+           SQLite (chat.db)                    → Web UI (tokens)
 ```
 
 ## 🔒 Security
 
 - **Non-root user**: Container runs as uid 1000 (crewai user)
-- **Read-only API key mount**: `~/.anthropic` mounted read-only
+- **Read-only mounts**: API key and input data mounted read-only
 - **Security opt**: `no-new-privileges:true`
 - **Network isolation**: Runs on `crewai-network` bridge
 - **Parameterized SQL**: No SQL injection vulnerabilities
 - **Session isolation**: User sessions stored separately
 - **No secrets in logs**: API keys never logged
-
-## 📝 pmem 1.0 Documentation
-
-This agent includes complete pmem 1.0 (persistent memory) documentation:
-
-| Artifact | Epoch | Description |
-|----------|-------|-------------|
-| PROBLEM.1761399356 | 2025-10-25 | Dashboard datasource UID mismatch |
-| ACTION.1761399400 | 2025-10-25 | Fix implementation with verification |
-| RESULT.1761399500 | 2025-10-25 | Confirmed fix, 22 data points |
-| LESSON.1761399600 | 2025-10-25 | Quality assurance improvements |
-| CONSENSUS.1761399786 | 2025-10-25 | Deployment complete, lineage frozen |
-
-All artifacts include:
-- Full JSON provenance headers
-- Cryptographic signatures
-- Bidirectional edge links
-- AICP (prov, ucon, eval) fragments
-- Weight tracking for reinforcement
+- **HTML escaping**: All user input sanitized before rendering
 
 ## 🐛 Troubleshooting
+
+### CSV Not Loading
+
+**Issue**: "WARNING: CSV file not found"
+
+**Solutions**:
+1. Verify CSV file exists: `ls input/KMMU_OPS_Data_10-24-25.csv`
+2. Check container mount: `docker inspect crewai-chat-pt-air-claude-sonnet4-prod-002 | grep input`
+3. Restart container: `./run-chat-pt-watch.sh restart`
+
+### Mask Commands Not Working
+
+**Issue**: "mask on" / "mask off" sent to Claude instead of handled locally
+
+**Solutions**:
+1. Hard refresh browser: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
+2. Clear browser cache
+3. Check JavaScript console for errors (F12)
 
 ### No Claude Responses
 
@@ -369,55 +322,13 @@ All artifacts include:
 1. Check API key exists: `cat ~/.anthropic/api_key`
 2. Verify API key is valid at https://console.anthropic.com/settings/keys
 3. Check API credits: https://console.anthropic.com/settings/billing
-4. View container logs: `./run-chat-passthrough-watch.sh logs`
-
-### Metrics Not Displaying in Grafana
-
-**Issue**: Dashboard panels show "No data"
-
-**Solutions**:
-1. Verify datasource UID in dashboard JSON matches Grafana
-   ```bash
-   curl http://localhost:3000/api/datasources -u admin:admin
-   ```
-2. Test datasource query:
-   ```bash
-   curl "http://localhost:3000/api/datasources/proxy/uid/DATASOURCE_UID/api/v1/query?query=up" -u admin:admin
-   ```
-3. Check Prometheus is scraping: `curl http://localhost:9090/targets`
-4. Verify metrics endpoint: `curl http://localhost:8087/metrics | grep crewai`
-
-See `kb/short/chat-passthrough.LESSON.1761399600.md` for detailed troubleshooting checklist.
-
-### Container Won't Start
-
-**Issue**: Container exits immediately or fails health check
-
-**Solutions**:
-1. Check logs: `docker logs crewai-chat-passthrough-claude-sonnet4-prod-001`
-2. Verify API key mount: `docker inspect crewai-chat-passthrough-claude-sonnet4-prod-001 | grep Mounts`
-3. Check network exists: `docker network inspect crewai-network`
-4. Verify ports not in use: `netstat -tuln | grep -E '8087|9097'`
-
-### Session Data Lost
-
-**Issue**: Chat history disappears after restart
-
-**Cause**: SQLite database not persisted
-
-**Solution**: Ensure `data/` directory is mounted:
-```bash
-# Verify mount in run script
-grep "data:/work/data" run-chat-passthrough-watch.sh
-```
+4. View container logs: `./run-chat-pt-watch.sh logs`
 
 ## 🔗 Links
 
-- **GitHub Repository**: https://github.com/rreck/crewai-chat-passthrough
-- **Chat Interface**: http://localhost:8087/chat
-- **Health Check**: http://localhost:8087/health
-- **Metrics**: http://localhost:8087/metrics
-- **Grafana Dashboard**: http://localhost:3000/d/crewai-chat-passthrough
+- **Chat Interface**: http://localhost:8089/chat
+- **Health Check**: http://localhost:8089/health
+- **Metrics**: http://localhost:8089/metrics
 - **Anthropic Console**: https://console.anthropic.com
 - **Claude API Docs**: https://docs.anthropic.com/claude/reference
 
@@ -436,16 +347,14 @@ See `CLAUDE.md` for architecture requirements and development workflow.
 
 ## 📦 Version History
 
-### v1.0.0 (2025-10-25)
+### v1.0.0 (2025-10-27)
 - Initial release
-- Pure passthrough to Claude Sonnet 4
-- Zero funnel logic implementation
+- CSV dataset integration (KMMU_OPS_Data_10-24-25.csv)
+- Claude Sonnet 4 with full column awareness (91 columns)
+- Client-side mask on/off commands
 - Streaming SSE responses
 - Session management with SQLite
-- 10-panel Grafana dashboard
-- Comprehensive Prometheus metrics
-- pmem 1.0 documentation
-- 91% test pass rate
+- Grafana dashboard with Prometheus metrics
 - Production deployment verified
 
 ---
